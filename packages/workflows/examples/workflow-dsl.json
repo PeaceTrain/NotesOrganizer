@@ -1,0 +1,17 @@
+[
+  {
+    "id": "wf_add_to_books",
+    "name": "Books list append from handwritten command",
+    "description": "When command 'add to list books' is detected, append selected text to books list.",
+    "trigger": "command_detected",
+    "filters": { "command": "add to list books" },
+    "actions": [
+      { "type": "append_to_list", "config": { "listName": "books" } }
+    ],
+    "targetResources": { "entity": "page" },
+    "outputDefinition": { "listItem": true },
+    "approvalRequired": true,
+    "enabled": false,
+    "auditMetadata": { "createdBy": "user" }
+  }
+]
