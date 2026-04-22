@@ -112,6 +112,54 @@ In separate terminal:
 pnpm --filter @inkforge/worker dev
 ```
 
+## Docker Quickstart (Build + Deploy)
+
+Use this path for the fastest self-hosted deployment.
+
+1. Copy environment defaults:
+
+```bash
+cp .env.example .env
+```
+
+2. Build and start the full stack:
+
+```bash
+docker compose up -d --build
+```
+
+3. Run database setup from the web container:
+
+```bash
+docker compose exec web pnpm db:generate
+docker compose exec web pnpm db:migrate
+docker compose exec web pnpm db:seed
+```
+
+4. Open services:
+   - InkForge Web: `http://localhost:3000`
+   - MinIO Console: `http://localhost:9001`
+
+5. Default seeded admin credentials:
+   - Email: `admin@inkforge.local`
+   - Password: `admin123`
+
+Useful commands:
+
+```bash
+# View service logs
+docker compose logs -f web worker
+
+# Restart services
+docker compose restart web worker
+
+# Stop stack
+docker compose down
+
+# Stop stack and remove volumes (destructive)
+docker compose down -v
+```
+
 ## Tests
 
 ```bash
