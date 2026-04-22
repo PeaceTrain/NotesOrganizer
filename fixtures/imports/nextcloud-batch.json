@@ -1,0 +1,8 @@
+[
+  {
+    "sourceType": "NEXTCLOUD_WEBDAV",
+    "sourcePath": "/Boox/NotebookA/page1.pdf",
+    "etag": "etag-1",
+    "fileHash": "hash-1"
+  }
+]

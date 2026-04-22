@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "paths": {
+      "@inkforge/shared/*": ["packages/shared/src/*"],
+      "@inkforge/db/*": ["packages/db/src/*"],
+      "@inkforge/ai/*": ["packages/ai/src/*"],
+      "@inkforge/workflows/*": ["packages/workflows/src/*"],
+      "@inkforge/search/*": ["packages/search/src/*"],
+      "@inkforge/storage/*": ["packages/storage/src/*"],
+      "@inkforge/ui/*": ["packages/ui/src/*"]
+    }
+  }
+}
