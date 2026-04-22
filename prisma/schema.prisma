@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum AssetType {
+  PDF
+  IMAGE
+  SCREENSHOT
+  THUMBNAIL
+  TEXT
+  OTHER
+}
+
+enum ImportSourceType {
+  NEXTCLOUD_WEBDAV
+  NEXTCLOUD_WEBHOOK
+  MANUAL_UPLOAD
+  API
+}
+
+enum ProcessingState {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVIEW_REQUIRED
+}
+
+enum CreationMethod {
+  MANUAL
+  AI
+  COMMAND
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  notebooks    Notebook[]
+  workflowRuns WorkflowRun[]
+}
+
+model Notebook {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  notes     Note[]
+  topics    Topic[]
+}
+
+model Note {
+  id             String   @id @default(cuid())
+  notebookId     String
+  title          String
+  sourcePath     String?
+  sourceType     ImportSourceType?
+  language       String?
+  aiStatus       ProcessingState @default(PENDING)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  notebook       Notebook @relation(fields: [notebookId], references: [id])
+  pages          Page[]
+  assets         Asset[]
+  topicMemberships TopicMembership[]
+  synthesizedSources SynthesizedNoteSource[]
+  lists          ListItem[]
+  enrichments    ContextEnrichment[]
+}
+
+model Page {
+  id             String   @id @default(cuid())
+  noteId         String
+  pageNumber     Int
+  extractedText  String?
+  cleanedText    String?
+  vectorPdfAssetId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  note           Note     @relation(fields: [noteId], references: [id])
+  assets         Asset[]
+  contextEnrichments ContextEnrichment[]
+  aiEnrichments  AIEnrichment[]
+  commandDetections CommandDetection[]
+  screenshots    Screenshot[]
+
+  @@unique([noteId, pageNumber])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  noteId        String?
+  pageId        String?
+  type         AssetType
+  objectKey    String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  checksum     String?
+  createdAt    DateTime @default(now())
+  note         Note?    @relation(fields: [noteId], references: [id])
+  page         Page?    @relation(fields: [pageId], references: [id])
+  screenshot   Screenshot?
+}
+
+model Screenshot {
+  id            String   @id @default(cuid())
+  assetId       String   @unique
+  pageId        String?
+  sourceGroupId String?
+  inferredTitle String?
+  inferredDomain String?
+  sourceContext String?
+  createdAt     DateTime @default(now())
+  asset         Asset    @relation(fields: [assetId], references: [id])
+  page          Page?    @relation(fields: [pageId], references: [id])
+  sourceGroup   SourceGroup? @relation(fields: [sourceGroupId], references: [id])
+  listItems     ListItem[]
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  notebookId  String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  notebook    Notebook @relation(fields: [notebookId], references: [id])
+  memberships TopicMembership[]
+  synthesized SynthesizedNote[]
+}
+
+model TopicMembership {
+  id            String   @id @default(cuid())
+  topicId        String
+  noteId         String
+  approvedByUser Boolean @default(false)
+  confidence     Float?
+  createdAt      DateTime @default(now())
+  topic          Topic    @relation(fields: [topicId], references: [id])
+  note           Note     @relation(fields: [noteId], references: [id])
+
+  @@unique([topicId, noteId])
+}
+
+model SynthesizedNote {
+  id             String   @id @default(cuid())
+  topicId         String?
+  sourceGroupId   String?
+  title          String
+  summary        String
+  keyPoints      Json
+  timeline       Json?
+  glossary       Json?
+  tasks          Json?
+  unresolvedQuestions Json?
+  createdAt      DateTime @default(now())
+  topic          Topic?   @relation(fields: [topicId], references: [id])
+  sourceGroup    SourceGroup? @relation(fields: [sourceGroupId], references: [id])
+  sources        SynthesizedNoteSource[]
+}
+
+model SynthesizedNoteSource {
+  id               String   @id @default(cuid())
+  synthesizedNoteId String
+  noteId           String
+  pageId           String?
+  screenshotId     String?
+  synthesizedNote  SynthesizedNote @relation(fields: [synthesizedNoteId], references: [id])
+  note             Note @relation(fields: [noteId], references: [id])
+
+  @@unique([synthesizedNoteId, noteId, pageId, screenshotId])
+}
+
+model SourceGroup {
+  id           String   @id @default(cuid())
+  name         String
+  domain       String?
+  appName      String?
+  context      String?
+  createdAt    DateTime @default(now())
+  screenshots  Screenshot[]
+  synthesized  SynthesizedNote[]
+}
+
+model List {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  createdAt    DateTime @default(now())
+  items        ListItem[]
+}
+
+model ListItem {
+  id           String   @id @default(cuid())
+  listId        String
+  noteId        String?
+  pageId        String?
+  screenshotId  String?
+  content      String
+  metadata     Json?
+  method       CreationMethod
+  createdAt    DateTime @default(now())
+  list         List @relation(fields: [listId], references: [id])
+  note         Note? @relation(fields: [noteId], references: [id])
+  screenshot   Screenshot? @relation(fields: [screenshotId], references: [id])
+}
+
+model ContextEnrichment {
+  id           String   @id @default(cuid())
+  noteId        String?
+  pageId        String?
+  kind         String
+  title        String
+  content      Json
+  createdAt    DateTime @default(now())
+  note         Note? @relation(fields: [noteId], references: [id])
+  page         Page? @relation(fields: [pageId], references: [id])
+}
+
+model AIEnrichment {
+  id           String   @id @default(cuid())
+  pageId        String
+  provider      String
+  model         String
+  task          String
+  output        Json
+  confidence    Float?
+  createdAt     DateTime @default(now())
+  page          Page @relation(fields: [pageId], references: [id])
+}
+
+model CommandDetection {
+  id           String   @id @default(cuid())
+  pageId        String
+  command      String
+  rawText      String
+  confidence   Float
+  requiresReview Boolean @default(false)
+  createdAt    DateTime @default(now())
+  page         Page @relation(fields: [pageId], references: [id])
+}
+
+model WorkflowDefinition {
+  id            String   @id @default(cuid())
+  name          String
+  description   String
+  trigger       String
+  filters       Json
+  actions       Json
+  targets       Json
+  output        Json
+  approvalRequired Boolean @default(true)
+  enabled       Boolean @default(false)
+  auditMetadata Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  runs          WorkflowRun[]
+}
+
+model WorkflowRun {
+  id            String   @id @default(cuid())
+  workflowId    String
+  initiatedByUserId String?
+  status        ProcessingState @default(PENDING)
+  input         Json
+  output        Json?
+  error         String?
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  workflow      WorkflowDefinition @relation(fields: [workflowId], references: [id])
+  initiatedByUser User? @relation(fields: [initiatedByUserId], references: [id])
+}
+
+model ImportJob {
+  id           String   @id @default(cuid())
+  sourceType   ImportSourceType
+  sourcePath   String
+  etag         String?
+  fileHash     String?
+  importedAt   DateTime @default(now())
+  deduplicated Boolean @default(false)
+  state        ProcessingState @default(PENDING)
+  provenance   Json
+}
+
+model ProcessingLog {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  stage        String
+  level        String
+  message      String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+}
+
+model Embedding {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  chunkText  String
+  vector     Unsupported("vector(1536)")
+  createdAt  DateTime @default(now())
+}
